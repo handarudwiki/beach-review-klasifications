@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TourSense — Review Classifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Variables ─────────────────────────────────────── */
+    :root {
+      --bg:        #080C10;
+      --surface:   #0E1318;
+      --card:      #131920;
+      --border:    #1E2830;
+      --border2:   #263040;
+      --text:      #D4DDE8;
+      --muted:     #5A6E80;
+      --accent:    #4AEBA0;
+      --accent2:   #2DD4BF;
+      --warn:      #F59E0B;
+
+      --c-green:   #2ECC71;
+      --c-red:     #E74C3C;
+      --c-teal:    #27AE60;
+      --c-blue:    #3498DB;
+      --c-purple:  #9B59B6;
+
+      --radius:    12px;
+      --radius-lg: 20px;
+      --font-head: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    /* ── Reset ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Background grid pattern ──────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(74,235,160,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(74,235,160,.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Glows ─────────────────────────────────────────── */
+    .glow-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: .35;
+    }
+    .glow-orb.g1 { width: 500px; height: 500px; background: #0D6B3B; top: -150px; left: -100px; }
+    .glow-orb.g2 { width: 400px; height: 400px; background: #0D3D5E; bottom: -100px; right: -80px; }
+
+    /* ── Layout ─────────────────────────────────────────── */
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      position: relative;
+      z-index: 1;
+      padding: 56px 24px 0;
+      text-align: center;
+    }
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(74,235,160,.08);
+      border: 1px solid rgba(74,235,160,.2);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 24px;
+      animation: fadeDown .6s ease both;
+    }
+    .logo-badge span { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; animation: pulse 2s infinite; }
+
+    h1 {
+      font-family: var(--font-head);
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -.03em;
+      animation: fadeDown .7s .1s ease both;
+    }
+    h1 em { font-style: normal; color: var(--accent); }
+
+    .subtitle {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 300;
+      max-width: 520px;
+      margin-inline: auto;
+      line-height: 1.7;
+      animation: fadeDown .7s .2s ease both;
+    }
+
+    /* ── Label pills row ────────────────────────────────── */
+    .label-strip {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin: 28px auto 0;
+      animation: fadeDown .7s .3s ease both;
+    }
+    .label-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid;
+      opacity: .75;
+    }
+
+    /* ── Divider ─────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border2), transparent);
+      margin: 48px 0;
+    }
+
+    /* ── Tab switcher ───────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 4px;
+      width: fit-content;
+      margin: 0 auto 32px;
+    }
+    .tab-btn {
+      padding: 9px 22px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .tab-btn.active {
+      background: var(--card);
+      color: var(--text);
+      box-shadow: 0 1px 8px rgba(0,0,0,.4);
+    }
+
+    /* ── Input card ─────────────────────────────────────── */
+    .input-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      transition: border-color .3s;
+    }
+    .input-card:focus-within { border-color: rgba(74,235,160,.35); }
+
+    .input-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 130px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 14.5px;
+      line-height: 1.7;
+      padding: 16px 18px;
+      resize: vertical;
+      outline: none;
+      transition: border-color .2s;
+    }
+    textarea::placeholder { color: var(--muted); opacity: .6; }
+    textarea:focus { border-color: rgba(74,235,160,.4); }
+
+    .input-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .char-count { font-size: 12px; color: var(--muted); }
+
+    .btn-predict {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #1DB86A, #16A085);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-family: var(--font-head);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s, opacity .15s;
+      box-shadow: 0 4px 20px rgba(29,184,106,.3);
+    }
+    .btn-predict:hover  { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(29,184,106,.4); }
+    .btn-predict:active { transform: translateY(0); }
+    .btn-predict:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .btn-clear {
+      padding: 12px 20px;
+      background: transparent;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--muted);
+      font-family: var(--font-body);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-clear:hover { border-color: var(--text); color: var(--text); }
+
+    /* ── Examples ────────────────────────────────────────── */
+    .examples-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .example-chip {
+      padding: 6px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .example-chip:hover { border-color: var(--accent); color: var(--accent); background: rgba(74,235,160,.05); }
+
+    /* ── Spinner ─────────────────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      display: none;
+    }
+    .loading .spinner { display: block; }
+    .loading .btn-text { display: none; }
+
+    /* ── Results ─────────────────────────────────────────── */
+    #results-section { margin-top: 40px; }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .results-title {
+      font-family: var(--font-head);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .results-count {
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 4px 12px;
+    }
+
+    /* ── Result card ─────────────────────────────────────── */
+    .result-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+      animation: fadeUp .4s ease both;
+      position: relative;
+      overflow: hidden;
+    }
+    .result-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: linear-gradient(180deg, var(--accent), var(--accent2));
+      border-radius: 3px 0 0 3px;
+    }
+
+    .review-text {
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .review-number {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .cleaned-text {
+      font-size: 11.5px;
+      color: var(--muted);
+      background: var(--surface);
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin: 10px 0 18px;
+      font-family: 'Courier New', monospace;
+    }
+    .cleaned-text::before { content: '🧹 cleaned: '; color: var(--accent); opacity: .7; font-size: 10px; }
+
+    /* ── Label grid ─────────────────────────────────────── */
+    .label-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 10px;
+    }
+
+    .label-card {
+      border-radius: 10px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: all .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .label-card.active {
+      border-color: var(--lc);
+      background: color-mix(in srgb, var(--lc) 8%, var(--surface));
+      box-shadow: 0 0 16px color-mix(in srgb, var(--lc) 20%, transparent);
+    }
+    .label-card.active::after {
+      content: '✓';
+      position: absolute;
+      top: 10px; right: 12px;
+      font-size: 11px;
+      color: var(--lc);
+      font-weight: 700;
+    }
+
+    .label-card-icon  { font-size: 22px; margin-bottom: 6px; }
+    .label-card-name  { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+    .label-card-desc  { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+    .confidence-bar-wrap { margin-top: 10px; }
+    .confidence-label    { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+    .confidence-bar      { height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+    .confidence-fill     { height: 100%; border-radius: 2px; background: var(--lc, #4AEBA0); transition: width .8s cubic-bezier(.16,1,.3,1); }
+
+    /* ── Batch summary ───────────────────────────────────── */
+    .summary-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 28px;
+      animation: fadeUp .4s ease both;
+    }
+    .summary-title {
+      font-family: var(--font-head);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+    .summary-item {
+      text-align: center;
+      padding: 14px 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .summary-item .s-emoji { font-size: 20px; margin-bottom: 6px; }
+    .summary-item .s-count { font-family: var(--font-head); font-size: 22px; font-weight: 800; }
+    .summary-item .s-name  { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty-state .e-icon { font-size: 48px; margin-bottom: 16px; opacity: .4; }
+    .empty-state p { font-size: 14px; line-height: 1.6; }
+
+    /* ── Toast ───────────────────────────────────────────── */
+    .toast {
+      position: fixed;
+      bottom: 32px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 12px 24px;
+      font-size: 13px;
+      color: var(--text);
+      opacity: 0;
+      transition: all .3s;
+      z-index: 100;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Model info ──────────────────────────────────────── */
+    .model-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 20px;
+      animation: fadeDown .7s .4s ease both;
+    }
+    .info-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 5px 14px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    .info-chip strong { color: var(--text); }
+
+    /* ── Animations ──────────────────────────────────────── */
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeUp   { from { opacity: 0; transform: translateY(16px);  } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin     { to { transform: rotate(360deg); } }
+    @keyframes pulse    { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+    /* ── Tab panels ──────────────────────────────────────── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .summary-grid { grid-template-columns: repeat(3, 1fr); }
+      .label-grid   { grid-template-columns: repeat(2, 1fr); }
+      h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="glow-orb g1"></div>
+<div class="glow-orb g2"></div>
+
+<!-- ── HEADER ─────────────────────────────────────────── -->
+<header>
+  <div class="logo-badge"><span></span> TourSense AI</div>
+  <h1>Tourism Review<br/><em>Label Classifier</em></h1>
+  <p class="subtitle">
+    Analisis ulasan wisata secara otomatis menggunakan Naive Bayes.<br/>
+    Deteksi 5 kategori sekaligus dari satu teks review.
+  </p>
+
+  <div class="label-strip">
+    {% for name, meta in label_meta.items() %}
+    <div class="label-pill" style="color:{{ meta.color }};border-color:{{ meta.color }}3A;background:{{ meta.color }}0D">
+      {{ meta.emoji }} {{ name }}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="model-info">
+    <div class="info-chip">🤖 <strong>ComplementNB</strong> + OneVsRest</div>
+    <div class="info-chip">⚙️ TF-IDF <strong>Vectorizer</strong></div>
+    <div class="info-chip">🔧 <strong>RandomizedSearchCV</strong> tuned</div>
+    <div class="info-chip">🇮🇩 Bahasa Indonesia</div>
+  </div>
+</header>
+
+<!-- ── MAIN ────────────────────────────────────────────── -->
+<div class="container">
+  <div class="divider"></div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('single', this)">Single Review</button>
+    <button class="tab-btn"        onclick="switchTab('batch',  this)">Batch (multi-baris)</button>
+  </div>
+
+  <!-- ── SINGLE TAB ──────────────────────────────────── -->
+  <div id="tab-single" class="tab-panel active">
+    <div class="input-card">
+      <label class="input-label">Tulis ulasan wisata</label>
+      <textarea id="single-input" placeholder="Contoh: Tempatnya sangat bersih dan pemandangannya indah, tapi akses jalan masih rusak…" oninput="updateCount(this, 'sc')"></textarea>
+      <div class="input-footer">
+        <span class="char-count"><span id="sc">0</span> karakter</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn-clear" onclick="clearInput('single-input','sc')">Hapus</button>
+          <button class="btn-predict" id="btn-single" onclick="predictSingle()">
+            <span class="spinner"></span>
+            <span class="btn-text">🔍 Analisis</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="examples-row">
+      <span style="font-size:11px;color:var(--muted);align-self:center;">Coba contoh:</span>
+      <div class="example-chip" onclick="useExample(this)">Toilet bersih, pemandangan indah</div>
+      <div class="example-chip" onclick="useExample(this)">Jalan rusak parah, sulit dijangkau</div>
+      <div class="example-chip" onclick="useExample(this)">Hutan lebat dengan satwa langka</div>
+      <div class="example-chip" onclick="useExample(this)">Harga mahal tapi pelayanan ramah</div>
+      <div class="example-chip" onclick="useExample(this)">Pantai indah, bersih, mudah diakses</div>
+    </div>
+
+    <div id="single-results"></div>
+  </div>
+
+  <!-- ── BATCH TAB ───────────────────────────────────── -->
+  <div id="tab-batch" class="tab-panel">
+    <div class="input-card">
+      <label class="input-label">Masukkan beberapa review (satu per baris)</label>
+      <textarea id="batch-input" style="min-height:200px" placeholder="Toilet sangat bersih dan nyaman&#10;Jalan rusak susah dijangkau&#10;Pemandangan gunung sangat indah&#10;Harga tiket terlalu mahal" oninput="updateCount(this,'bc')"></textarea>
+      <div class="input-footer">
+        <span class="char-count"><span id="bc">0</span> karakter</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn-clear" onclick="clearInput('batch-input','bc')">Hapus</button>
+          <button class="btn-predict" id="btn-batch" onclick="predictBatch()">
+            <span class="spinner"></span>
+            <span class="btn-text">🚀 Analisis Semua</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="batch-results"></div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const LABEL_COLORS = {
+    "Fasilitas Kebersihan": "#2ECC71",
+    "Keindahan":            "#E74C3C",
+    "Alam":                 "#27AE60",
+    "Aksesibilitas":        "#3498DB",
+    "Others":               "#9B59B6",
+  };
+
+  // ── Helpers ──────────────────────────────────────────
+  function updateCount(el, id) {
+    document.getElementById(id).textContent = el.value.length;
+  }
+
+  function clearInput(id, countId) {
+    document.getElementById(id).value = '';
+    document.getElementById(countId).textContent = 0;
+  }
+
+  function useExample(el) {
+    const ta = document.getElementById('single-input');
+    ta.value = el.textContent.trim();
+    document.getElementById('sc').textContent = ta.value.length;
+    ta.focus();
+  }
+
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  function setLoading(btnId, yes) {
+    const btn = document.getElementById(btnId);
+    if (yes) btn.classList.add('loading'), btn.disabled = true;
+    else     btn.classList.remove('loading'), btn.disabled = false;
+  }
+
+  // ── Render one result card ────────────────────────────
+  function renderCard(item, idx) {
+    const labelCards = item.label_details.map(ld => {
+      const conf   = ld.confidence != null ? Math.round(ld.confidence * 100) : null;
+      const confBar = conf != null
+        ? `<div class="confidence-bar-wrap">
+             <div class="confidence-label"><span>Confidence</span><span>${conf}%</span></div>
+             <div class="confidence-bar"><div class="confidence-fill" style="width:${conf}%;--lc:${ld.color}"></div></div>
+           </div>` : '';
+      return `
+        <div class="label-card ${ld.predicted ? 'active' : ''}" style="--lc:${ld.color}">
+          <div class="label-card-icon">${ld.emoji}</div>
+          <div class="label-card-name">${ld.name}</div>
+          <div class="label-card-desc">${ld.desc}</div>
+          ${confBar}
+        </div>`;
+    }).join('');
+
+    const badges = item.labels.map(l =>
+      `<span style="background:${LABEL_COLORS[l]}18;color:${LABEL_COLORS[l]};border:1px solid ${LABEL_COLORS[l]}40;border-radius:100px;padding:3px 10px;font-size:11px;font-weight:600;">${l}</span>`
+    ).join(' ');
+
+    return `
+      <div class="result-card" style="animation-delay:${idx * 0.07}s">
+        <div class="review-number">Review #${idx + 1} — ${item.labels.length} label terdeteksi &nbsp;${badges}</div>
+        <div class="review-text">"${item.review}"</div>
+        <div class="cleaned-text">${item.cleaned || '(empty after preprocessing)'}</div>
+        <div class="label-grid">${labelCards}</div>
+      </div>`;
+  }
+
+  // ── Render summary (batch) ────────────────────────────
+  function renderSummary(results) {
+    const counts = {};
+    const labels = ["Fasilitas Kebersihan","Keindahan","Alam","Aksesibilitas","Others"];
+    const emojis = {"Fasilitas Kebersihan":"🧹","Keindahan":"🌅","Alam":"🌿","Aksesibilitas":"🛣️","Others":"💬"};
+    labels.forEach(l => counts[l] = 0);
+    results.forEach(r => r.labels.forEach(l => counts[l] = (counts[l]||0) + 1));
+
+    const items = labels.map(l => `
+      <div class="summary-item">
+        <div class="s-emoji">${emojis[l]}</div>
+        <div class="s-count" style="color:${LABEL_COLORS[l]}">${counts[l]}</div>
+        <div class="s-name">${l}</div>
+      </div>`).join('');
+
+    return `
+      <div class="summary-card">
+        <div class="summary-title">📊 Ringkasan ${results.length} Review</div>
+        <div class="summary-grid">${items}</div>
+      </div>`;
+  }
+
+  // ── Single predict ────────────────────────────────────
+  async function predictSingle() {
+    const text = document.getElementById('single-input').value.trim();
+    if (!text) { showToast('⚠️ Masukkan teks review terlebih dahulu'); return; }
+
+    setLoading('btn-single', true);
+    const container = document.getElementById('single-results');
+    container.innerHTML = '';
+
+    try {
+      const resp = await fetch('/predict', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ reviews: [text] })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      container.innerHTML = `
+        <div class="results-header" style="margin-top:32px">
+          <div class="results-title">Hasil Analisis</div>
+        </div>
+        ${data.results.map((r,i) => renderCard(r,i)).join('')}`;
+    } catch(e) {
+      showToast('❌ Error: ' + e.message);
+    } finally {
+      setLoading('btn-single', false);
+    }
+  }
+
+  // ── Batch predict ─────────────────────────────────────
+  async function predictBatch() {
+    const text = document.getElementById('batch-input').value.trim();
+    if (!text) { showToast('⚠️ Masukkan beberapa review terlebih dahulu'); return; }
+
+    const reviews = text.split('\n').filter(r => r.trim());
+    if (reviews.length < 1) { showToast('⚠️ Tidak ada review valid ditemukan'); return; }
+
+    setLoading('btn-batch', true);
+    const container = document.getElementById('batch-results');
+    container.innerHTML = '';
+
+    try {
+      const resp = await fetch('/predict', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ reviews })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      const summary = renderSummary(data.results);
+      const cards   = data.results.map((r,i) => renderCard(r,i)).join('');
+
+      container.innerHTML = `
+        <div class="results-header" style="margin-top:32px">
+          <div class="results-title">Hasil Analisis</div>
+          <div class="results-count">${data.results.length} review</div>
+        </div>
+        ${summary}${cards}`;
+
+      showToast(`✅ ${data.results.length} review berhasil dianalisis`);
+    } catch(e) {
+      showToast('❌ Error: ' + e.message);
+    } finally {
+      setLoading('btn-batch', false);
+    }
+  }
+
+  // Enter key shortcut for single
+  document.getElementById('single-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) predictSingle();
+  });
+</script>
+</body>
+</html>
