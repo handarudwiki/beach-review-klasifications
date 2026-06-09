@@ -42,15 +42,19 @@ _stemmer         = _stemmer_factory.create_stemmer()
 _sw_factory      = StopWordRemoverFactory()
 _sw_remover      = _sw_factory.create_stop_word_remover()
 
-def (text):
+def translate_to_indonesian(text):
     """Translate English to Indonesian. Skip if already Indonesian or other language."""
     try:
         lang = detect(text)
         if lang != "en":
+            print("Lang : ", lang)
+            print(f"Skipping translation for {lang}: {text}")
             return text
         translated = GoogleTranslator(source="en", target="id").translate(text)
+        print("translated : ", translated)
         return translated if translated else text
     except Exception as e:
+        print(f"Translation error: {e}")
         return text
 
 
