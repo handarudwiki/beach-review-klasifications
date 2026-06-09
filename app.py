@@ -6,13 +6,14 @@ from flask import Flask, render_template, request, jsonify
 import joblib
 import re
 import os
+from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 
 app = Flask(__name__)
 
 # ── Load model & binarizer ─────────────────────────────────────────────
 BASE_DIR = os.path.dirname(__file__)
 model = joblib.load(os.path.join(BASE_DIR, "multilabel_nb_model.pkl"))
-mlb   = joblib.load(os.path.join(BASE_DIR, "label_binarizer.pkl"))
 
 LABEL_NAMES = ["Fasilitas Kebersihan", "Keindahan", "Alam", "Aksesibilitas", "Others"]
 
@@ -25,40 +26,73 @@ LABEL_META = {
 }
 
 # ── Indonesian stopwords ───────────────────────────────────────────────
-STOPWORDS_ID = {
-    "yang", "dan", "di", "ke", "dari", "ini", "itu", "dengan", "untuk",
-    "adalah", "ada", "pada", "juga", "saya", "kami", "kita", "mereka",
-    "sangat", "sudah", "bisa", "tidak", "ya", "atau", "akan", "lebih",
-    "satu", "dua", "tiga", "ber", "ter", "me", "per", "an", "kan",
-    "lagi", "jadi", "tapi", "namun", "karena", "kalau", "jika", "maka",
-    "agar", "supaya", "hingga", "serta", "maupun", "bahwa", "sehingga",
-    "dalam", "oleh", "atas", "bawah", "antara", "tanpa", "setelah",
-    "sebelum", "selama", "seperti", "sama", "semua", "setiap", "masih",
-    "belum", "pun", "nih", "sih", "deh", "dong", "lho",
-    "nya", "mu", "ku", "punya", "milik", "bagi", "para",
+
+EXTRA_STOPWORDS = {
+    "nih", "sih", "deh", "dong", "lho", "tuh", "yuk", "wah",
+    "banget", "bgt", "udah", "udh", "gak", "nggak", "ga",
+    "nya", "mu", "ku", "tp", "yg", "dgn", "utk", "jg", "krn",
+    "klo", "kl", "emg", "emang", "kayak", "kaya", "aja", "doang",
 }
 
-def preprocess_text(text):
-    text = text.lower()
-    text = re.sub(r"http\S+|www\S+", "", text)
-    text = re.sub(r"<[^>]+>", "", text)
+_stemmer_factory = StemmerFactory()
+_stemmer         = _stemmer_factory.create_stemmer()
+
+_sw_factory      = StopWordRemoverFactory()
+_sw_remover      = _sw_factory.create_stop_word_remover()
+
+def translate_to_indonesian(text):
+    """Translate English to Indonesian. Skip if already Indonesian or other language."""
+    try:
+        lang = detect(text)
+        if lang != "en":
+            return text
+        translated = GoogleTranslator(source="en", target="id").translate(text)
+        return translated if translated else text
+    except Exception:
+        return text
+
+
+# ── Atomic preprocessing step functions ──────────────────────────────
+def step_translate(text):
+    return translate_to_indonesian(text)
+
+def step_lowercase(text):
+    return text.lower()
+
+def step_remove_urls(text):
+    return re.sub(r"http\S+|www\S+", "", text)
+
+def step_remove_html(text):
+    return re.sub(r"<[^>]+>", "", text)
+
+def step_remove_special_chars(text):
     text = re.sub(r"[^a-z\s]", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    tokens = text.split()
-    tokens = [t for t in tokens if t not in STOPWORDS_ID and len(t) > 2]
-    cleaned = []
-    for token in tokens:
-        for prefix in ["me", "ber", "ter", "pe", "ke", "se"]:
-            if token.startswith(prefix) and len(token) > len(prefix) + 2:
-                token = token[len(prefix):]
-                break
-        for suffix in ["kan", "an", "nya", "i"]:
-            if token.endswith(suffix) and len(token) > len(suffix) + 2:
-                token = token[:-len(suffix)]
-                break
-        if len(token) > 2:
-            cleaned.append(token)
-    return " ".join(cleaned)
+    return re.sub(r"\s+", " ", text).strip()
+
+def step_remove_stopwords(text):
+    return _sw_remover.remove(text)
+
+def step_stem(text):
+    return _stemmer.stem(text)
+
+def step_filter_tokens(text):
+    tokens = [t for t in text.split() if len(t) > 2 and t not in EXTRA_STOPWORDS]
+    return " ".join(tokens)
+
+def preprocess_text(text: str) -> str:
+    if not isinstance(text, str):
+        return ""
+
+    text = step_translate(text)
+    text = step_lowercase(text)
+    text = step_remove_urls(text)
+    text = step_remove_html(text)
+    text = step_remove_special_chars(text)
+    text = step_remove_stopwords(text)
+    text = step_stem(text)
+    text = step_filter_tokens(text)
+
+    return text
 
 
 # ── Routes ─────────────────────────────────────────────────────────────
@@ -94,8 +128,8 @@ def predict():
         except Exception:
             pred_prob = [None] * len(LABEL_NAMES)
 
-        pred_labels = mlb.inverse_transform(pred_bin)[0]
-        pred_labels = list(pred_labels) if pred_labels else ["Others"]
+        pred_labels = [LABEL_NAMES[j] for j, v in enumerate(pred_bin[0]) if v == 1]
+        pred_labels = pred_labels if pred_labels else ["Others"]
 
         label_details = []
         for i, label in enumerate(LABEL_NAMES):
@@ -134,8 +168,8 @@ def predict_list(reviews_raw):
     for review in reviews_raw:
         cleaned  = preprocess_text(review)
         pred_bin = model.predict([cleaned])
-        pred_labels = mlb.inverse_transform(pred_bin)[0]
-        pred_labels = list(pred_labels) if pred_labels else ["Others"]
+        pred_labels = [LABEL_NAMES[j] for j, v in enumerate(pred_bin[0]) if v == 1]
+        pred_labels = pred_labels if pred_labels else ["Others"]
 
         probs = []
         try:
@@ -165,6 +199,11 @@ def predict_list(reviews_raw):
         })
 
     return jsonify({"results": results})
+
+
+@app.route("/analysis")
+def analysis():
+    return render_template("analysis.html")
 
 
 if __name__ == "__main__":

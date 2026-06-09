@@ -532,7 +532,34 @@
     <div class="info-chip">🔧 <strong>RandomizedSearchCV</strong> tuned</div>
     <div class="info-chip">🇮🇩 Bahasa Indonesia</div>
   </div>
+
+  <div style="margin-top:24px;animation:fadeDown .7s .5s ease both">
+    <a href="/analysis" class="btn-analysis">📊 Lihat Analisis Model</a>
+  </div>
 </header>
+
+<style>
+  .btn-analysis {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: transparent;
+    border: 1px solid rgba(74,235,160,.35);
+    border-radius: var(--radius);
+    color: var(--accent);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background .2s, border-color .2s, transform .15s;
+  }
+  .btn-analysis:hover {
+    background: rgba(74,235,160,.08);
+    border-color: rgba(74,235,160,.6);
+    transform: translateY(-2px);
+  }
+</style>
 
 <!-- ── MAIN ────────────────────────────────────────────── -->
 <div class="container">
@@ -713,6 +740,8 @@
       });
       const data = await resp.json();
       if (data.error) throw new Error(data.error);
+
+      console.log(data.results);
 
       container.innerHTML = `
         <div class="results-header" style="margin-top:32px">
