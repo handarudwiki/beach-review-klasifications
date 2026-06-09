@@ -8,6 +8,8 @@ import re
 import os
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
+from langdetect import detect
+from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
@@ -40,7 +42,7 @@ _stemmer         = _stemmer_factory.create_stemmer()
 _sw_factory      = StopWordRemoverFactory()
 _sw_remover      = _sw_factory.create_stop_word_remover()
 
-def translate_to_indonesian(text):
+def (text):
     """Translate English to Indonesian. Skip if already Indonesian or other language."""
     try:
         lang = detect(text)
@@ -48,7 +50,7 @@ def translate_to_indonesian(text):
             return text
         translated = GoogleTranslator(source="en", target="id").translate(text)
         return translated if translated else text
-    except Exception:
+    except Exception as e:
         return text
 
 
