@@ -17,14 +17,14 @@ app = Flask(__name__)
 BASE_DIR = os.path.dirname(__file__)
 model = joblib.load(os.path.join(BASE_DIR, "multilabel_nb_model.pkl"))
 
-LABEL_NAMES = ["Fasilitas Kebersihan", "Keindahan", "Alam", "Aksesibilitas", "Others"]
+LABEL_NAMES = ["Fasilitas", "Kebersihan", "Keindahan Alam", "Aksesibilitas", "Others"]
 
 LABEL_META = {
-    "Fasilitas Kebersihan": {"emoji": "🧹", "color": "#2ECC71", "desc": "Kebersihan & fasilitas umum"},
-    "Keindahan":            {"emoji": "🌅", "color": "#E74C3C", "desc": "Keindahan visual & estetika"},
-    "Alam":                 {"emoji": "🌿", "color": "#27AE60", "desc": "Flora, fauna & lingkungan alam"},
-    "Aksesibilitas":        {"emoji": "🛣️",  "color": "#3498DB", "desc": "Kemudahan akses & transportasi"},
-    "Others":               {"emoji": "💬", "color": "#9B59B6", "desc": "Harga, pelayanan & lainnya"},
+    "Fasilitas":      {"emoji": "🏢", "color": "#2ECC71", "desc": "Fasilitas umum & amenitas"},
+    "Kebersihan":     {"emoji": "🧹", "color": "#E74C3C", "desc": "Kebersihan & sanitasi"},
+    "Keindahan Alam": {"emoji": "🌿", "color": "#27AE60", "desc": "Keindahan alam & pemandangan"},
+    "Aksesibilitas":  {"emoji": "🛣️",  "color": "#3498DB", "desc": "Kemudahan akses & transportasi"},
+    "Others":         {"emoji": "💬", "color": "#9B59B6", "desc": "Harga, pelayanan & lainnya"},
 }
 
 # ── Indonesian stopwords ───────────────────────────────────────────────
