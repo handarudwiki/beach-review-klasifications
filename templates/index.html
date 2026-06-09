@@ -673,18 +673,11 @@
   // ── Render one result card ────────────────────────────
   function renderCard(item, idx) {
     const labelCards = item.label_details.map(ld => {
-      const conf   = ld.confidence != null ? Math.round(ld.confidence * 100) : null;
-      const confBar = conf != null
-        ? `<div class="confidence-bar-wrap">
-             <div class="confidence-label"><span>Confidence</span><span>${conf}%</span></div>
-             <div class="confidence-bar"><div class="confidence-fill" style="width:${conf}%;--lc:${ld.color}"></div></div>
-           </div>` : '';
       return `
         <div class="label-card ${ld.predicted ? 'active' : ''}" style="--lc:${ld.color}">
           <div class="label-card-icon">${ld.emoji}</div>
           <div class="label-card-name">${ld.name}</div>
           <div class="label-card-desc">${ld.desc}</div>
-          ${confBar}
         </div>`;
     }).join('');
 
